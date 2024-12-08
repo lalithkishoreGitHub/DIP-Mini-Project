@@ -1,0 +1,98 @@
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+from skimage import io, util
+from skimage.metrics import peak_signal_noise_ratio as psnr, structural_similarity as ssim, mean_squared_error as mse
+from scipy.ndimage import median_filter
+
+# Define a list of image paths
+image_files = ["walking.jpg", "NYC.jpg", "ship.jpg"]  # Replace with image filenames
+
+# Function to process an image
+def process_image(image_path, noise_amount=0.02, filter_size=3):
+    """
+    Processes a single image by adding salt-and-pepper noise and applying median filtering.
+    :param image_path: Path to the image file.
+    :param noise_amount: Proportion of salt-and-pepper noise to add.
+    :param filter_size: Size of the median filter kernel.
+    :return: Original image, noised image, restored image, and quality metrics.
+    """
+    # Load image and convert to grayscale
+    image = io.imread(image_path, as_gray=True)
+    image = (image * 255).astype(np.uint8)
+    
+    # Add salt-and-pepper noise
+    noised_image = util.random_noise(image, mode='s&p', amount=noise_amount)
+    noised_image = (noised_image * 255).astype(np.uint8)
+    
+    # Apply median filter
+    restored_image = median_filter(noised_image, size=filter_size)
+    
+    # Calculate quality metrics
+    psnr_value = psnr(image, restored_image)
+    ssim_value = ssim(image, restored_image)
+    mse_value = mse(image, restored_image)
+    
+    return image, noised_image, restored_image, psnr_value, ssim_value, mse_value
+
+# Process each image in the list
+results = []
+psnr_values = []
+ssim_values = []
+mse_values = []
+for img_file in image_files:
+    try:
+        print(f"Processing {img_file}...")
+        original, noised, restored, psnr_val, ssim_val, mse_val = process_image(img_file)
+        results.append((img_file, psnr_val, ssim_val, mse_val))
+        psnr_values.append(psnr_val)
+        ssim_values.append(ssim_val)
+        mse_values.append(mse_val)
+        
+        # Display results for this image
+        plt.figure(figsize=(15, 5))
+        plt.suptitle(f"Results for {img_file}", fontsize=16)
+        
+        plt.subplot(1, 3, 1)
+        plt.title("Original Image")
+        plt.imshow(original, cmap='gray')
+        plt.axis('off')
+        
+        plt.subplot(1, 3, 2)
+        plt.title("Noised Image")
+        plt.imshow(noised, cmap='gray')
+        plt.axis('off')
+        
+        plt.subplot(1, 3, 3)
+        plt.title("Restored Image")
+        plt.imshow(restored, cmap='gray')
+        plt.axis('off')
+        
+        plt.tight_layout()
+        plt.show()
+        
+    except Exception as e:
+        print(f"Failed to process {img_file}: {e}")
+
+# Display summary of results
+print("\nSummary of Results:")
+print(f"{'Image':<15}{'PSNR':<10}{'SSIM':<10}{'MSE':<10}")
+print("-" * 45)
+for img_file, psnr_val, ssim_val, mse_val in results:
+    print(f"{img_file:<15}{psnr_val:<10.2f}{ssim_val:<10.4f}{mse_val:<10.2f}")
+
+# Generate corresponding graphs for PSNR, SSIM, and MSE
+metrics = ["PSNR", "SSIM", "MSE"]
+values = [psnr_values, ssim_values, mse_values]
+
+plt.figure(figsize=(12, 8))
+for i, metric in enumerate(metrics):
+    plt.subplot(3, 1, i + 1)
+    plt.bar(image_files, values[i], color=['blue', 'green', 'orange'])
+    plt.title(f"{metric} Comparison Across Images", fontsize=14)
+    plt.ylabel(metric)
+    plt.xticks(rotation=45)
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+
+plt.tight_layout()
+plt.show()
